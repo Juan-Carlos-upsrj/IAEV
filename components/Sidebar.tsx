@@ -1,23 +1,31 @@
 import React from 'react';
-import { User, BookOpen, UploadCloud, FileText, LogOut, GraduationCap, LayoutDashboard } from 'lucide-react';
+import { User, BookOpen, UploadCloud, FileText, LogOut, GraduationCap, LayoutDashboard, Shield } from 'lucide-react';
 import { User as UserType } from '../types';
+import { useNavigate, useLocation } from 'react-router-dom';
 
 interface SidebarProps {
   user: UserType | null;
-  activeTab: string;
-  setActiveTab: (tab: string) => void;
   onLogout: () => void;
 }
 
-export const Sidebar: React.FC<SidebarProps> = ({ user, activeTab, setActiveTab, onLogout }) => {
+export const Sidebar: React.FC<SidebarProps> = ({ user, onLogout }) => {
+  const navigate = useNavigate();
+  const location = useLocation();
+
   if (!user) return null;
 
   const menuItems = [
-    { id: 'dashboard', label: 'Dashboard', icon: <LayoutDashboard size={20} /> },
-    { id: 'courses', label: 'My Courses', icon: <BookOpen size={20} /> },
-    { id: 'portfolio', label: 'Community & Portfolio', icon: <UploadCloud size={20} /> },
-    { id: 'kardex', label: 'Academic Kardex', icon: <FileText size={20} /> },
+    { id: 'dashboard', path: '/dashboard', label: 'Dashboard', icon: <LayoutDashboard size={20} /> },
+    { id: 'courses', path: '/courses', label: 'My Courses', icon: <BookOpen size={20} /> },
+    { id: 'portfolio', path: '/portfolio', label: 'Community & Portfolio', icon: <UploadCloud size={20} /> },
+    { id: 'kardex', path: '/kardex', label: 'Academic Kardex', icon: <FileText size={20} /> },
   ];
+
+  if (user.role === 'teacher' || user.role === 'admin') {
+    menuItems.push({ id: 'admin', path: '/admin', label: 'Admin Panel', icon: <Shield size={20} /> });
+  }
+
+  const isActive = (path: string) => location.pathname === path || (path !== '/dashboard' && location.pathname.startsWith(path));
 
   return (
     <div className="w-64 h-screen fixed left-0 top-0 glass flex flex-col z-50 transition-all duration-300">
@@ -34,9 +42,9 @@ export const Sidebar: React.FC<SidebarProps> = ({ user, activeTab, setActiveTab,
         {menuItems.map((item) => (
           <button
             key={item.id}
-            onClick={() => setActiveTab(item.id)}
+            onClick={() => navigate(item.path)}
             className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-200 ${
-              activeTab === item.id
+              isActive(item.path)
                 ? 'bg-blue-600/20 text-blue-400 border border-blue-500/30 shadow-[0_0_15px_rgba(59,130,246,0.3)]'
                 : 'text-slate-400 hover:bg-white/5 hover:text-white'
             }`}

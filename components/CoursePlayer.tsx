@@ -3,13 +3,13 @@ import { PlayCircle, CheckCircle, Lock, AlertCircle, Award } from 'lucide-react'
 import { Course, Lesson } from '../types';
 import { api } from '../services/api';
 import { GoogleGenAI } from "@google/genai";
+import { useParams, useNavigate } from 'react-router-dom';
 
-interface CoursePlayerProps {
-  courseId: number;
-  onBack: () => void;
-}
+export const CoursePlayer: React.FC = () => {
+  const { id } = useParams<{ id: string }>();
+  const navigate = useNavigate();
+  const courseId = parseInt(id || '0');
 
-export const CoursePlayer: React.FC<CoursePlayerProps> = ({ courseId, onBack }) => {
   const [course, setCourse] = useState<Course | null>(null);
   const [activeLesson, setActiveLesson] = useState<Lesson | null>(null);
   const [loading, setLoading] = useState(true);
@@ -23,11 +23,10 @@ export const CoursePlayer: React.FC<CoursePlayerProps> = ({ courseId, onBack }) 
   const fetchCourseData = useCallback(async () => {
     try {
       setLoading(true);
-      // In a real app, this endpoint fetches course structure + user progress
       const data = await api.get<Course>(`/courses.php?id=${courseId}`); 
       setCourse(data);
       
-      // Auto-select first uncompleted lesson or the first lesson
+      // Auto-select first uncompleted lesson
       if (data.modules.length > 0 && data.modules[0].lessons.length > 0) {
         let found = false;
         for (const mod of data.modules) {
@@ -43,20 +42,17 @@ export const CoursePlayer: React.FC<CoursePlayerProps> = ({ courseId, onBack }) 
         if (!found) setActiveLesson(data.modules[0].lessons[0]);
       }
     } catch (err) {
-      setError('Failed to load course content. Please check connection.');
+      setError('Failed to load course content.');
     } finally {
       setLoading(false);
     }
   }, [courseId]);
 
   useEffect(() => {
-    fetchCourseData();
-  }, [fetchCourseData]);
+    if(courseId) fetchCourseData();
+  }, [fetchCourseData, courseId]);
 
   const handleLessonClick = (lesson: Lesson) => {
-    // Determine if lesson is locked. Logic: Previous lesson must be completed.
-    // For simplicity here, we rely on the backend data, but we can double check locally.
-    // A simplified check: You can access any completed lesson OR the first uncompleted one.
     setActiveLesson(lesson);
     setAiResponse('');
     setShowAi(false);
@@ -68,7 +64,6 @@ export const CoursePlayer: React.FC<CoursePlayerProps> = ({ courseId, onBack }) 
     try {
       await api.post('/progress.php', { lesson_id: activeLesson.id, completed: true });
       
-      // Update local state to reflect completion immediately
       setCourse(prev => {
         if (!prev) return null;
         const newModules = prev.modules.map(m => ({
@@ -77,9 +72,6 @@ export const CoursePlayer: React.FC<CoursePlayerProps> = ({ courseId, onBack }) 
         }));
         return { ...prev, modules: newModules };
       });
-
-      // Find next lesson
-      // (Simplified logic for brevity)
     } catch (e) {
       console.error(e);
     }
@@ -101,13 +93,12 @@ export const CoursePlayer: React.FC<CoursePlayerProps> = ({ courseId, onBack }) 
       
       setAiResponse(response.text || "I couldn't generate an explanation right now.");
     } catch (e) {
-      setAiResponse("AI Tutor is currently unavailable. Please check your API key.");
+      setAiResponse("AI Tutor is currently unavailable.");
     } finally {
       setIsThinking(false);
     }
   };
 
-  // Certificate Generation (Client-side simulation using jsPDF)
   const downloadCertificate = () => {
     // @ts-ignore
     if (window.jspdf) {
@@ -117,16 +108,13 @@ export const CoursePlayer: React.FC<CoursePlayerProps> = ({ courseId, onBack }) 
       doc.setTextColor(40, 40, 40);
       doc.text("CERTIFICATE OF COMPLETION", 148, 50, { align: "center" });
       
-      doc.setFontSize(20);
-      doc.text("This certifies that the student", 148, 80, { align: "center" });
-      
       doc.setFontSize(30);
-      doc.setTextColor(59, 130, 246); // Blue
-      doc.text("Valued Student", 148, 100, { align: "center" }); // Use real name in prod
+      doc.setTextColor(59, 130, 246);
+      doc.text("Valued Student", 148, 100, { align: "center" }); 
       
       doc.setFontSize(20);
       doc.setTextColor(40, 40, 40);
-      doc.text(`Has successfully completed the course: ${course?.title}`, 148, 130, { align: "center" });
+      doc.text(`Has successfully completed: ${course?.title}`, 148, 130, { align: "center" });
       
       doc.save("certificate.pdf");
     }
@@ -138,14 +126,13 @@ export const CoursePlayer: React.FC<CoursePlayerProps> = ({ courseId, onBack }) 
 
   const totalLessons = course.modules.reduce((acc, m) => acc + m.lessons.length, 0);
   const completedCount = course.modules.reduce((acc, m) => acc + m.lessons.filter(l => l.is_completed).length, 0);
-  const progressPercent = Math.round((completedCount / totalLessons) * 100);
+  const progressPercent = totalLessons > 0 ? Math.round((completedCount / totalLessons) * 100) : 0;
 
   return (
-    <div className="flex flex-col h-full overflow-hidden">
-      {/* Header */}
-      <div className="p-6 border-b border-white/10 flex justify-between items-center glass mb-4 rounded-xl mx-4 mt-4">
+    <div className="flex flex-col h-full overflow-hidden p-4">
+      <div className="p-6 border-b border-white/10 flex justify-between items-center glass mb-4 rounded-xl">
         <div>
-          <button onClick={onBack} className="text-sm text-slate-400 hover:text-white mb-1">← Back to Dashboard</button>
+          <button onClick={() => navigate('/dashboard')} className="text-sm text-slate-400 hover:text-white mb-1">← Back to Dashboard</button>
           <h2 className="text-2xl font-bold text-white">{course.title}</h2>
         </div>
         <div className="text-right">
@@ -167,8 +154,7 @@ export const CoursePlayer: React.FC<CoursePlayerProps> = ({ courseId, onBack }) 
         </div>
       </div>
 
-      <div className="flex flex-1 gap-4 px-4 pb-4 overflow-hidden">
-        {/* Main Content Area */}
+      <div className="flex flex-1 gap-4 overflow-hidden">
         <div className="flex-1 flex flex-col gap-4 overflow-y-auto pr-2">
           <div className="aspect-video bg-black rounded-xl overflow-hidden border border-white/10 relative group shadow-2xl">
             {activeLesson ? (
@@ -182,7 +168,6 @@ export const CoursePlayer: React.FC<CoursePlayerProps> = ({ courseId, onBack }) 
               ) : (
                 <div className="w-full h-full flex flex-col items-center justify-center bg-slate-900 p-8 text-center">
                   <h3 className="text-2xl font-bold mb-4">Quiz Time!</h3>
-                  <p className="text-slate-400 mb-6">Complete the assessment to unlock the next module.</p>
                   <button onClick={markComplete} className="px-6 py-2 bg-blue-600 rounded-lg text-white">Start Quiz</button>
                 </div>
               )
@@ -221,7 +206,7 @@ export const CoursePlayer: React.FC<CoursePlayerProps> = ({ courseId, onBack }) 
                   Gemini Tutor {isThinking && <span className="animate-pulse">...</span>}
                 </h4>
                 <div className="text-slate-200 text-sm leading-relaxed whitespace-pre-line">
-                  {isThinking ? "Analyzing lesson content to provide a helpful summary..." : aiResponse}
+                  {isThinking ? "Thinking..." : aiResponse}
                 </div>
               </div>
             )}
@@ -232,7 +217,6 @@ export const CoursePlayer: React.FC<CoursePlayerProps> = ({ courseId, onBack }) 
           </div>
         </div>
 
-        {/* Sidebar Lesson List */}
         <div className="w-80 glass rounded-xl overflow-hidden flex flex-col border border-white/10">
           <div className="p-4 border-b border-white/10 bg-white/5">
             <h3 className="font-bold text-white">Course Content</h3>
@@ -242,36 +226,22 @@ export const CoursePlayer: React.FC<CoursePlayerProps> = ({ courseId, onBack }) 
               <div key={module.id}>
                 <h4 className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-2 px-2 mt-2">{module.title}</h4>
                 <div className="space-y-1">
-                  {module.lessons.map((lesson, idx) => {
-                    // Logic for locking:
-                    // Usually, check if previous lesson is completed.
-                    // Here we assume sequential array order for simplicity.
-                    const isLocked = !lesson.is_completed && (idx > 0 && !module.lessons[idx-1].is_completed); // Simplified logic
-                    
-                    return (
-                      <button
-                        key={lesson.id}
-                        disabled={isLocked}
-                        onClick={() => handleLessonClick(lesson)}
-                        className={`w-full flex items-center gap-3 p-3 rounded-lg text-left transition-all ${
-                          activeLesson?.id === lesson.id 
-                            ? 'bg-blue-600/20 border border-blue-500/50' 
-                            : 'hover:bg-white/5'
-                        } ${isLocked ? 'opacity-50 cursor-not-allowed' : ''}`}
-                      >
-                        {lesson.is_completed ? (
-                          <CheckCircle size={18} className="text-green-400 shrink-0" />
-                        ) : isLocked ? (
-                          <Lock size={18} className="text-slate-600 shrink-0" />
-                        ) : (
-                          <PlayCircle size={18} className="text-blue-400 shrink-0" />
-                        )}
-                        <span className={`text-sm truncate ${activeLesson?.id === lesson.id ? 'text-white' : 'text-slate-400'}`}>
-                          {lesson.title}
-                        </span>
-                      </button>
-                    );
-                  })}
+                  {module.lessons.map((lesson, idx) => (
+                    <button
+                      key={lesson.id}
+                      onClick={() => handleLessonClick(lesson)}
+                      className={`w-full flex items-center gap-3 p-3 rounded-lg text-left transition-all ${
+                        activeLesson?.id === lesson.id 
+                          ? 'bg-blue-600/20 border border-blue-500/50' 
+                          : 'hover:bg-white/5'
+                      }`}
+                    >
+                      {lesson.is_completed ? <CheckCircle size={18} className="text-green-400 shrink-0" /> : <PlayCircle size={18} className="text-blue-400 shrink-0" />}
+                      <span className={`text-sm truncate ${activeLesson?.id === lesson.id ? 'text-white' : 'text-slate-400'}`}>
+                        {lesson.title}
+                      </span>
+                    </button>
+                  ))}
                 </div>
               </div>
             ))}
