@@ -3,7 +3,6 @@ import { PlayCircle, CheckCircle, Lock, AlertCircle, Award } from 'lucide-react'
 import { Course, Lesson } from '../types';
 import { api } from '../services/api';
 import { GoogleGenAI } from "@google/genai";
-import { GEMINI_API_KEY } from '../constants';
 
 interface CoursePlayerProps {
   courseId: number;
@@ -92,7 +91,7 @@ export const CoursePlayer: React.FC<CoursePlayerProps> = ({ courseId, onBack }) 
     setShowAi(true);
     
     try {
-      const ai = new GoogleGenAI({ apiKey: GEMINI_API_KEY });
+      const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
       const prompt = `I am a student learning about "${activeLesson.title}". The content is: ${activeLesson.content}. Can you explain this topic simply and give me a practical example?`;
       
       const response = await ai.models.generateContent({

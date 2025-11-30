@@ -204,7 +204,7 @@ const App = () => {
             )}
             
             {/* Courses tab shares Dashboard view for now */}
-            {activeTab === 'courses' && activeTab !== 'dashboard' && (
+            {activeTab === 'courses' && (
                <div className="text-center py-20">
                  <h2 className="text-xl text-slate-500">All courses listed in Dashboard</h2>
                </div>

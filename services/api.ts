@@ -50,6 +50,23 @@ export const api = {
     }
   },
 
+  delete: async <T>(endpoint: string): Promise<T> => {
+    try {
+      const response = await fetch(`${API_BASE_URL}${endpoint}`, {
+        method: 'DELETE',
+        headers: getHeaders(),
+      });
+      if (!response.ok) {
+        const err = await response.json();
+        throw new Error(err.message || 'API Error');
+      }
+      return await response.json() as T;
+    } catch (error) {
+      console.error('Delete error:', error);
+      throw error;
+    }
+  },
+
   upload: async <T>(endpoint: string, formData: FormData): Promise<T> => {
     try {
       const headers = getHeaders() as Record<string, string>;

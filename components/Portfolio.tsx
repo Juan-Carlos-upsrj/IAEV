@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Upload, File, Trash2, ExternalLink, FileText } from 'lucide-react';
+import { Upload, File, Trash2, ExternalLink, FileText, AlertTriangle } from 'lucide-react';
 import { api } from '../services/api';
 import { Project } from '../types';
 
@@ -7,6 +7,7 @@ export const Portfolio: React.FC = () => {
   const [projects, setProjects] = useState<Project[]>([]);
   const [uploading, setUploading] = useState(false);
   const [message, setMessage] = useState('');
+  const [projectToDelete, setProjectToDelete] = useState<number | null>(null);
 
   const fetchProjects = async () => {
     try {
@@ -34,17 +35,30 @@ export const Portfolio: React.FC = () => {
     try {
       const newProject = await api.upload<Project>('/upload.php', formData);
       setProjects([newProject, ...projects]);
-      setMessage('Project uploaded successfully!');
+      setMessage('Success: Project uploaded successfully!');
       form.reset();
     } catch (err) {
-      setMessage('Failed to upload project. Check file size/type.');
+      setMessage('Error: Failed to upload project. Check file size/type.');
     } finally {
       setUploading(false);
     }
   };
 
+  const confirmDelete = async () => {
+    if (!projectToDelete) return;
+    try {
+      await api.delete(`/delete_project.php?id=${projectToDelete}`);
+      setProjects(projects.filter(p => p.id !== projectToDelete));
+      setMessage('Success: Project deleted.');
+    } catch (e) {
+      setMessage('Error: Failed to delete project.');
+    } finally {
+      setProjectToDelete(null);
+    }
+  };
+
   return (
-    <div className="p-8 h-full overflow-y-auto">
+    <div className="p-8 h-full overflow-y-auto relative">
       <div className="max-w-4xl mx-auto">
         <h2 className="text-3xl font-bold text-white mb-2">Community Portfolio</h2>
         <p className="text-slate-400 mb-8">Share your work with the IAEV community. Uploads must be images or PDF.</p>
@@ -78,7 +92,7 @@ export const Portfolio: React.FC = () => {
                 >
                   {uploading ? <div className="animate-spin rounded-full h-4 w-4 border-2 border-white border-t-transparent"></div> : 'Upload to Portfolio'}
                 </button>
-                {message && <p className={`text-xs text-center ${message.includes('Success') ? 'text-green-400' : 'text-red-400'}`}>{message}</p>}
+                {message && <p className={`text-xs text-center ${message.startsWith('Success') ? 'text-green-400' : 'text-red-400'}`}>{message}</p>}
               </form>
             </div>
           </div>
@@ -100,20 +114,29 @@ export const Portfolio: React.FC = () => {
                       <img src={proj.file_path} alt={proj.title} className="w-full h-full object-cover" />
                     )}
                   </div>
-                  <div className="flex-1">
+                  <div className="flex-1 min-w-0">
                     <div className="flex justify-between items-start">
-                      <h4 className="text-lg font-bold text-white">{proj.title}</h4>
-                      <span className="text-xs text-slate-500">{new Date(proj.created_at).toLocaleDateString()}</span>
+                      <h4 className="text-lg font-bold text-white truncate">{proj.title}</h4>
+                      <span className="text-xs text-slate-500 shrink-0 ml-2">{new Date(proj.created_at).toLocaleDateString()}</span>
                     </div>
                     <p className="text-sm text-slate-400 mt-1 mb-3 line-clamp-2">{proj.description}</p>
-                    <a 
-                      href={proj.file_path} 
-                      target="_blank" 
-                      rel="noopener noreferrer"
-                      className="inline-flex items-center gap-1 text-xs text-blue-400 hover:text-blue-300"
-                    >
-                      View Full Project <ExternalLink size={12} />
-                    </a>
+                    <div className="flex justify-between items-center">
+                      <a 
+                        href={proj.file_path} 
+                        target="_blank" 
+                        rel="noopener noreferrer"
+                        className="inline-flex items-center gap-1 text-xs text-blue-400 hover:text-blue-300"
+                      >
+                        View Full Project <ExternalLink size={12} />
+                      </a>
+                      <button 
+                        onClick={() => setProjectToDelete(proj.id)}
+                        className="p-2 bg-red-500/10 hover:bg-red-500/20 text-red-400 rounded-lg transition-colors opacity-0 group-hover:opacity-100 focus:opacity-100"
+                        title="Delete Project"
+                      >
+                        <Trash2 size={16} />
+                      </button>
+                    </div>
                   </div>
                 </div>
               ))
@@ -121,6 +144,37 @@ export const Portfolio: React.FC = () => {
           </div>
         </div>
       </div>
+
+      {/* Delete Confirmation Modal */}
+      {projectToDelete !== null && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-in fade-in duration-200">
+          <div className="bg-[#1e293b] border border-white/10 p-6 rounded-2xl max-w-sm w-full shadow-2xl transform scale-100 transition-all">
+            <div className="flex items-center gap-3 text-red-400 mb-4">
+              <div className="p-3 bg-red-500/10 rounded-full">
+                <AlertTriangle size={24} />
+              </div>
+              <h3 className="text-xl font-bold text-white">Delete Project?</h3>
+            </div>
+            <p className="text-slate-400 mb-6 text-sm leading-relaxed">
+              Are you sure you want to delete this project? This action cannot be undone and the file will be permanently removed from your portfolio.
+            </p>
+            <div className="flex gap-3 justify-end">
+              <button 
+                onClick={() => setProjectToDelete(null)}
+                className="px-4 py-2 rounded-lg text-slate-300 hover:bg-white/5 transition-colors text-sm font-medium"
+              >
+                Cancel
+              </button>
+              <button 
+                onClick={confirmDelete}
+                className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg text-sm font-medium transition-colors shadow-lg shadow-red-500/20"
+              >
+                Delete Forever
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
