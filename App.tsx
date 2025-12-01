@@ -1,5 +1,4 @@
 import React, { useState, useEffect } from 'react';
-import { createRoot } from 'react-dom/client';
 import { BrowserRouter, Routes, Route, Navigate, useNavigate } from 'react-router-dom';
 import { Sidebar } from './components/Sidebar';
 import { CoursePlayer } from './components/CoursePlayer';
@@ -139,5 +138,4 @@ const App = () => {
   );
 };
 
-const root = createRoot(document.getElementById('root') as HTMLElement);
-root.render(<App />);
+export default App;

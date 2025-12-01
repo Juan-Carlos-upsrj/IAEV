@@ -1,3 +1,14 @@
-import './App';
-// Styles are handled via Tailwind CDN in index.html for this specific output format, 
-// but normally we would import index.css here.
+import React from 'react';
+import { createRoot } from 'react-dom/client';
+import './index.css'; // Import the Tailwind CSS
+import App from './App';
+
+const container = document.getElementById('root');
+if (container) {
+  const root = createRoot(container);
+  root.render(
+    <React.StrictMode>
+      <App />
+    </React.StrictMode>
+  );
+}
